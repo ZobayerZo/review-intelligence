@@ -1,0 +1,65 @@
+{
+    "model": "TF-IDF + Logistic Regression",
+    "configuration": "class_weight=balanced",
+    "test_records": 22500,
+    "overall_metrics": {
+        "accuracy": 0.8740444444444444,
+        "macro_f1": 0.7293275524919122,
+        "weighted_f1": 0.8847867450542077,
+        "macro_precision": 0.7057453665262797,
+        "macro_recall": 0.7697306164704084
+    },
+    "classification_report": {
+        "negative": {
+            "precision": 0.7788557213930348,
+            "recall": 0.8261213720316622,
+            "f1-score": 0.8017925736235595,
+            "support": 3790.0
+        },
+        "neutral": {
+            "precision": 0.3617886178861789,
+            "recall": 0.5708787684413086,
+            "f1-score": 0.4428962428464792,
+            "support": 1559.0
+        },
+        "positive": {
+            "precision": 0.9765917602996255,
+            "recall": 0.9121917089382543,
+            "f1-score": 0.9432938410056978,
+            "support": 17151.0
+        },
+        "accuracy": 0.8740444444444444,
+        "macro avg": {
+            "precision": 0.7057453665262797,
+            "recall": 0.7697306164704084,
+            "f1-score": 0.7293275524919122,
+            "support": 22500.0
+        },
+        "weighted avg": {
+            "precision": 0.9006851964561348,
+            "recall": 0.8740444444444444,
+            "f1-score": 0.8847867450542077,
+            "support": 22500.0
+        }
+    },
+    "category_metrics": {
+        "Beauty": {
+            "records": 7500,
+            "accuracy": 0.8705333333333334,
+            "macro_f1": 0.7342180960330561,
+            "weighted_f1": 0.8826593087158513
+        },
+        "Electronics": {
+            "records": 7500,
+            "accuracy": 0.8726666666666667,
+            "macro_f1": 0.722762877146612,
+            "weighted_f1": 0.8834137981584591
+        },
+        "Home_Kitchen": {
+            "records": 7500,
+            "accuracy": 0.8789333333333333,
+            "macro_f1": 0.7297863872971521,
+            "weighted_f1": 0.88816713024023
+        }
+    }
+}

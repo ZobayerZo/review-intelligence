@@ -1,0 +1,28 @@
+{
+    "total_reviews": 29994,
+    "categories": {
+        "Electronics": 10000,
+        "Home_Kitchen": 10000,
+        "Beauty": 9994
+    },
+    "ratings": {
+        "1.0": 1701,
+        "2.0": 1049,
+        "3.0": 2479,
+        "4.0": 6120,
+        "5.0": 18645
+    },
+    "sentiments": {
+        "positive": 24765,
+        "negative": 2750,
+        "neutral": 2479
+    },
+    "average_review_length": 73.66893378675735,
+    "median_review_length": 44.0,
+    "average_helpful_votes": 1.2884910315396412,
+    "verified_purchase_percentage": 62.689204507568185,
+    "date_range": {
+        "start": "2003-01-29 15:53:43+00:00",
+        "end": "2023-03-16 20:47:13.396000+00:00"
+    }
+}
