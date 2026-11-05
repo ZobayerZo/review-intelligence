@@ -14,10 +14,17 @@ import streamlit as st
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data" / "processed" / "absa"
+REPORTS_DIR = ROOT / "reports"
+FIGURES_DIR = REPORTS_DIR / "figures"
 
 RESULTS_PATH = DATA_DIR / "absa_pilot_results_enriched.parquet"
 SUMMARY_PATH = DATA_DIR / "absa_pilot_summary_enriched.csv"
 
+# Review-level sentiment model evaluation
+BASELINE_RESULTS_PATH = REPORTS_DIR / "baseline_test_results.json"
+DISTILBERT_RESULTS_PATH = REPORTS_DIR / "distilbert_test_results.json"
+DISTILBERT_HISTORY_PATH = REPORTS_DIR / "distilbert_training_history.json"
+DISTILBERT_CONFUSION_PATH = FIGURES_DIR / "distilbert_test_confusion_matrix.png"
 sys.path.insert(0, str(ROOT))
 
 st.set_page_config(
@@ -351,7 +358,43 @@ if not RESULTS_PATH.exists() or not SUMMARY_PATH.exists():
     st.stop()
 
 df, review_df = load_data()
+# ============================================================
+# 3B. LOAD REVIEW-LEVEL MODEL EVALUATION REPORTS
+# ============================================================
 
+@st.cache_data
+def load_model_reports():
+
+    required_files = [
+        BASELINE_RESULTS_PATH,
+        DISTILBERT_RESULTS_PATH,
+        DISTILBERT_HISTORY_PATH,
+        DISTILBERT_CONFUSION_PATH
+    ]
+
+    missing_files = [
+        path.name for path in required_files
+        if not path.exists()
+    ]
+
+    if missing_files:
+        return None, None, None
+
+    import json
+
+    with open(BASELINE_RESULTS_PATH, "r", encoding="utf-8-sig") as file:
+        baseline = json.load(file)
+
+    with open(DISTILBERT_RESULTS_PATH, "r", encoding="utf-8-sig") as file:
+        distilbert = json.load(file)
+
+    with open(DISTILBERT_HISTORY_PATH, "r", encoding="utf-8-sig") as file:
+        history = json.load(file)
+
+    return baseline, distilbert, history
+
+
+baseline_report, distilbert_report, training_history = load_model_reports()
 
 # ============================================================
 # 4. HELPER FUNCTIONS
@@ -763,147 +806,440 @@ elif page == "Sentiment Analytics":
     hero(
         "SENTIMENT LAB",
         "Measure customer perception.",
-        "Explore sentiment composition, category differences and confidence patterns."
+        "Explore review-level model performance and aspect-level customer sentiment."
     )
 
     show_kpis()
 
-    section("Sentiment distribution")
+    tab1, tab2, tab3 = st.tabs([
+        "Model Evaluation",
+        "Training Insights",
+        "Aspect Analytics"
+    ])
 
-    counts = sentiment_distribution(filtered_aspects)
+    # ========================================================
+    # TAB 1: REVIEW-LEVEL MODEL EVALUATION
+    # ========================================================
 
-    sentiment_table = pd.DataFrame({
-        "Sentiment": counts.index,
-        "Predictions": counts.values
-    })
+    with tab1:
 
-    sentiment_table["Share (%)"] = (
-        sentiment_table["Predictions"]
-        / max(total_aspects, 1) * 100
-    ).round(2)
+        section("Review-level sentiment | Model performance")
 
-    c1, c2 = st.columns([1.1, 1])
+        if baseline_report is not None and distilbert_report is not None:
 
-    with c1:
-
-        fig = px.bar(
-            sentiment_table,
-            x="Sentiment",
-            y="Predictions",
-            color="Sentiment",
-            color_discrete_map=SENTIMENT_COLORS,
-            text="Share (%)"
-        )
-
-        make_chart(fig, 350)
-
-    with c2:
-
-        fig = px.pie(
-            sentiment_table,
-            names="Sentiment",
-            values="Predictions",
-            hole=.58,
-            color="Sentiment",
-            color_discrete_map=SENTIMENT_COLORS
-        )
-
-        make_chart(fig, 350)
-
-    section("Aspect sentiment heatmap")
-
-    if not filtered_aspects.empty:
-
-        heat_data = (
-            filtered_aspects.groupby(
-                ["category", "normalized_aspect"]
+            st.caption(
+                "Evaluation on the held-out test set of 22,500 reviews. "
+                "These results are separate from the 300-review ABSA pilot."
             )
-            .agg(
-                positive=(
-                    "aspect_sentiment",
-                    lambda x: (x == "Positive").sum()
+
+            baseline_metrics = baseline_report["overall_metrics"]
+            distilbert_metrics = distilbert_report["overall_metrics"]
+
+            metric_columns = st.columns(4)
+
+            metric_columns[0].metric(
+                "DistilBERT accuracy",
+                f"{distilbert_metrics['accuracy'] * 100:.2f}%",
+                f"{(distilbert_metrics['accuracy'] - baseline_metrics['accuracy']) * 100:+.2f} pp"
+            )
+
+            metric_columns[1].metric(
+                "Macro F1",
+                f"{distilbert_metrics['macro_f1'] * 100:.2f}%",
+                f"{(distilbert_metrics['macro_f1'] - baseline_metrics['macro_f1']) * 100:+.2f} pp"
+            )
+
+            metric_columns[2].metric(
+                "Weighted F1",
+                f"{distilbert_metrics['weighted_f1'] * 100:.2f}%",
+                f"{(distilbert_metrics['weighted_f1'] - baseline_metrics['weighted_f1']) * 100:+.2f} pp"
+            )
+
+            metric_columns[3].metric(
+                "Test records",
+                f"{distilbert_report['test_records']:,}"
+            )
+
+            section("Model benchmark | TF-IDF vs DistilBERT")
+
+            comparison_data = pd.DataFrame({
+                "Metric": [
+                    "Accuracy",
+                    "Macro F1",
+                    "Weighted F1",
+                    "Macro Precision",
+                    "Macro Recall"
+                ],
+                "TF-IDF + Logistic Regression": [
+                    baseline_metrics["accuracy"] * 100,
+                    baseline_metrics["macro_f1"] * 100,
+                    baseline_metrics["weighted_f1"] * 100,
+                    baseline_metrics["macro_precision"] * 100,
+                    baseline_metrics["macro_recall"] * 100
+                ],
+                "DistilBERT": [
+                    distilbert_metrics["accuracy"] * 100,
+                    distilbert_metrics["macro_f1"] * 100,
+                    distilbert_metrics["weighted_f1"] * 100,
+                    distilbert_metrics["macro_precision"] * 100,
+                    distilbert_metrics["macro_recall"] * 100
+                ]
+            })
+
+            comparison_long = comparison_data.melt(
+                id_vars="Metric",
+                var_name="Model",
+                value_name="Score"
+            )
+
+            fig = px.bar(
+                comparison_long,
+                x="Metric",
+                y="Score",
+                color="Model",
+                barmode="group",
+                text_auto=".2f",
+                color_discrete_map={
+                    "TF-IDF + Logistic Regression": "#7184A8",
+                    "DistilBERT": ACCENT
+                }
+            )
+
+            fig.update_layout(
+                yaxis_title="Score (%)",
+                xaxis_title="",
+                yaxis_range=[0, 105]
+            )
+
+            make_chart(fig, 390)
+
+            section("Class-wise performance")
+
+            baseline_classes = baseline_report["classification_report"]
+            distilbert_classes = distilbert_report["classification_report"]
+
+            class_rows = []
+
+            for sentiment in ["negative", "neutral", "positive"]:
+                for metric in ["precision", "recall", "f1-score"]:
+                    class_rows.append({
+                        "Sentiment": sentiment.capitalize(),
+                        "Metric": {
+                            "precision": "Precision",
+                            "recall": "Recall",
+                            "f1-score": "F1-score"
+                        }[metric],
+                        "TF-IDF": baseline_classes[sentiment][metric] * 100,
+                        "DistilBERT": distilbert_classes[sentiment][metric] * 100
+                    })
+
+            class_data = pd.DataFrame(class_rows)
+
+            selected_metric = st.selectbox(
+                "Select evaluation metric",
+                ["F1-score", "Precision", "Recall"],
+                index=0,
+                key="review_model_class_metric"
+            )
+
+            selected_data = class_data[
+                class_data["Metric"] == selected_metric
+            ]
+
+            fig = px.bar(
+                selected_data.melt(
+                    id_vars="Sentiment",
+                    var_name="Model",
+                    value_name="Score"
                 ),
-                neutral=(
-                    "aspect_sentiment",
-                    lambda x: (x == "Neutral").sum()
+                x="Sentiment",
+                y="Score",
+                color="Model",
+                barmode="group",
+                text_auto=".2f",
+                color_discrete_map={
+                    "TF-IDF": "#7184A8",
+                    "DistilBERT": ACCENT
+                }
+            )
+
+            fig.update_layout(
+                yaxis_title=f"{selected_metric} (%)",
+                yaxis_range=[0, 105]
+            )
+
+            make_chart(fig, 340)
+
+        else:
+            st.warning(
+                "Model evaluation reports are unavailable. "
+                "Check baseline_test_results.json and "
+                "distilbert_test_results.json in the reports folder."
+            )
+
+    # ========================================================
+    # TAB 2: TRAINING INSIGHTS
+    # ========================================================
+
+    with tab2:
+
+        section("DistilBERT training progression")
+
+        if training_history is not None:
+
+            history_df = pd.DataFrame(training_history)
+            history_df["epoch"] = history_df["epoch"].astype(int)
+
+            history_long = history_df.melt(
+                id_vars="epoch",
+                value_vars=["accuracy", "macro_f1"],
+                var_name="Metric",
+                value_name="Score"
+            )
+
+            history_long["Score"] *= 100
+
+            fig = px.line(
+                history_long,
+                x="epoch",
+                y="Score",
+                color="Metric",
+                markers=True,
+                color_discrete_map={
+                    "accuracy": TEAL,
+                    "macro_f1": ACCENT
+                }
+            )
+
+            fig.update_layout(
+                xaxis_title="Training epoch",
+                yaxis_title="Validation score (%)",
+                xaxis=dict(
+                    tickmode="array",
+                    tickvals=history_df["epoch"].tolist()
                 ),
-                negative=(
-                    "aspect_sentiment",
-                    lambda x: (x == "Negative").sum()
+                yaxis_range=[70, 100]
+            )
+
+            make_chart(fig, 350)
+
+            section("Training and validation loss")
+
+            loss_data = history_df.melt(
+                id_vars="epoch",
+                value_vars=["train_loss", "validation_loss"],
+                var_name="Loss type",
+                value_name="Loss"
+            )
+
+            fig = px.line(
+                loss_data,
+                x="epoch",
+                y="Loss",
+                color="Loss type",
+                markers=True,
+                color_discrete_map={
+                    "train_loss": TEAL,
+                    "validation_loss": RED
+                }
+            )
+
+            fig.update_layout(
+                xaxis_title="Training epoch",
+                yaxis_title="Loss",
+                xaxis=dict(
+                    tickmode="array",
+                    tickvals=history_df["epoch"].tolist()
                 )
             )
-            .reset_index()
+
+            make_chart(fig, 320)
+
+            section("Test-set confusion matrix")
+
+            if DISTILBERT_CONFUSION_PATH.exists():
+                st.image(
+                    str(DISTILBERT_CONFUSION_PATH),
+                    caption="DistilBERT confusion matrix — held-out test set",
+                    use_container_width=True
+                )
+            else:
+                st.warning(
+                    "Confusion matrix image not found at "
+                    "reports/figures/distilbert_test_confusion_matrix.png."
+                )
+
+            section("Model interpretation")
+
+            insight_card(
+                "Best checkpoint: Epoch 2",
+                "DistilBERT achieved its highest validation Macro F1 "
+                "of 77.65% at epoch 2. Epoch 3 showed a slight decline "
+                "in Macro F1 alongside increasing validation loss."
+            )
+
+            insight_card(
+                "Neutral sentiment remains challenging",
+                "Neutral F1 was 50.20%, compared with 85.96% for "
+                "negative and 96.58% for positive sentiment."
+            )
+
+        else:
+            st.warning(
+                "Training history is unavailable. Check "
+                "distilbert_training_history.json in the reports folder."
+            )
+
+    # ========================================================
+    # TAB 3: ASPECT-LEVEL ABSA ANALYTICS
+    # ========================================================
+
+    with tab3:
+
+        st.caption(
+            "The following charts summarize the separate 300-review "
+            "ABSA pilot and use the current global filters."
         )
 
-        heat_data["total"] = (
-            heat_data["positive"]
-            + heat_data["neutral"]
-            + heat_data["negative"]
+        section("Aspect-level sentiment distribution")
+
+        counts = sentiment_distribution(filtered_aspects)
+
+        sentiment_table = pd.DataFrame({
+            "Sentiment": counts.index,
+            "Predictions": counts.values
+        })
+
+        sentiment_table["Share (%)"] = (
+            sentiment_table["Predictions"]
+            / max(total_aspects, 1) * 100
+        ).round(2)
+
+        c1, c2 = st.columns([1.1, 1])
+
+        with c1:
+            fig = px.bar(
+                sentiment_table,
+                x="Sentiment",
+                y="Predictions",
+                color="Sentiment",
+                color_discrete_map=SENTIMENT_COLORS,
+                text="Share (%)"
+            )
+            make_chart(fig, 350)
+
+        with c2:
+            fig = px.pie(
+                sentiment_table,
+                names="Sentiment",
+                values="Predictions",
+                hole=.58,
+                color="Sentiment",
+                color_discrete_map=SENTIMENT_COLORS
+            )
+            make_chart(fig, 350)
+
+        section("Aspect sentiment heatmap")
+
+        if not filtered_aspects.empty:
+
+            heat_data = (
+                filtered_aspects.groupby(
+                    ["category", "normalized_aspect"]
+                )
+                .agg(
+                    positive=(
+                        "aspect_sentiment",
+                        lambda x: (x == "Positive").sum()
+                    ),
+                    neutral=(
+                        "aspect_sentiment",
+                        lambda x: (x == "Neutral").sum()
+                    ),
+                    negative=(
+                        "aspect_sentiment",
+                        lambda x: (x == "Negative").sum()
+                    )
+                )
+                .reset_index()
+            )
+
+            heat_data["total"] = (
+                heat_data["positive"]
+                + heat_data["neutral"]
+                + heat_data["negative"]
+            )
+
+            heat_data["positive_share"] = (
+                heat_data["positive"]
+                / heat_data["total"].replace(0, 1)
+                * 100
+            )
+
+            top_heat_aspects = (
+                heat_data.groupby("normalized_aspect")["total"]
+                .sum()
+                .nlargest(15)
+                .index
+            )
+
+            heat_data = heat_data[
+                heat_data["normalized_aspect"].isin(top_heat_aspects)
+            ]
+
+            heat_pivot = heat_data.pivot(
+                index="category",
+                columns="normalized_aspect",
+                values="positive_share"
+            )
+
+            fig = px.imshow(
+                heat_pivot,
+                aspect="auto",
+                color_continuous_scale=[
+                    "#D65353",
+                    "#D69E36",
+                    "#16A36A"
+                ],
+                zmin=0,
+                zmax=100,
+                labels={
+                    "color": "Positive share (%)",
+                    "x": "Aspect",
+                    "y": "Category"
+                }
+            )
+
+            make_chart(fig, 390)
+
+        else:
+            st.info("No aspect predictions match the current filters.")
+
+        section("Aspect model confidence distribution")
+
+        if not filtered_aspects.empty:
+
+            fig = px.histogram(
+                filtered_aspects,
+                x="confidence",
+                color="aspect_sentiment",
+                nbins=20,
+                barmode="overlay",
+                opacity=.8,
+                color_discrete_map=SENTIMENT_COLORS
+            )
+
+            make_chart(fig, 330)
+
+        else:
+            st.info("No confidence values are available for the current filters.")
+
+        st.caption(
+            "Heatmap values show the percentage of positive predictions "
+            "among predictions for each category/aspect combination. "
+            "They are not accuracy scores. Confidence values are model "
+            "outputs and are not independently validated accuracy estimates."
         )
-
-        heat_data["positive_share"] = (
-            heat_data["positive"]
-            / heat_data["total"].replace(0, 1)
-            * 100
-        )
-
-        top_heat_aspects = (
-            heat_data.groupby("normalized_aspect")["total"]
-            .sum()
-            .nlargest(15)
-            .index
-        )
-
-        heat_data = heat_data[
-            heat_data["normalized_aspect"].isin(top_heat_aspects)
-        ]
-
-        heat_pivot = heat_data.pivot(
-            index="category",
-            columns="normalized_aspect",
-            values="positive_share"
-        )
-
-        fig = px.imshow(
-            heat_pivot,
-            aspect="auto",
-            color_continuous_scale=[
-                "#D65353",
-                "#D69E36",
-                "#16A36A"
-            ],
-            zmin=0,
-            zmax=100,
-            labels={
-                "color": "Positive share (%)",
-                "x": "Aspect",
-                "y": "Category"
-            }
-        )
-
-        make_chart(fig, 390)
-
-    section("Model confidence distribution")
-
-    if not filtered_aspects.empty:
-
-        fig = px.histogram(
-            filtered_aspects,
-            x="confidence",
-            color="aspect_sentiment",
-            nbins=20,
-            barmode="overlay",
-            opacity=.8,
-            color_discrete_map=SENTIMENT_COLORS
-        )
-
-        make_chart(fig, 330)
-
-    st.caption(
-        "Heatmap values show the percentage of positive predictions "
-        "among predictions for each category/aspect combination. "
-        "They are not accuracy scores."
-    )
 
 
 # ============================================================

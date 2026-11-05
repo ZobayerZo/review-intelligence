@@ -1,0 +1,65 @@
+﻿{
+    "model": "DistilBERT",
+    "checkpoint": "Best validation Macro F1 (Epoch 2)",
+    "test_records": 22500,
+    "overall_metrics": {
+        "accuracy": 0.9135111111111112,
+        "macro_f1": 0.775820911405388,
+        "weighted_f1": 0.915804243134151,
+        "macro_precision": 0.7623812216618329,
+        "macro_recall": 0.7909003289928763
+    },
+    "classification_report": {
+        "negative": {
+            "precision": 0.8294896957801766,
+            "recall": 0.8920844327176781,
+            "f1-score": 0.8596491228070176,
+            "support": 3790.0
+        },
+        "neutral": {
+            "precision": 0.479020979020979,
+            "recall": 0.5272610647851187,
+            "f1-score": 0.5019847328244275,
+            "support": 1559.0
+        },
+        "positive": {
+            "precision": 0.9786329901843428,
+            "recall": 0.9533554894758323,
+            "f1-score": 0.965828878584719,
+            "support": 17151.0
+        },
+        "accuracy": 0.9135111111111112,
+        "macro avg": {
+            "precision": 0.7623812216618329,
+            "recall": 0.7909003289928763,
+            "f1-score": 0.775820911405388,
+            "support": 22500.0
+        },
+        "weighted avg": {
+            "precision": 0.9188930696867662,
+            "recall": 0.9135111111111112,
+            "f1-score": 0.915804243134151,
+            "support": 22500.0
+        }
+    },
+    "category_metrics": {
+        "Beauty": {
+            "records": 7500,
+            "accuracy": 0.9108,
+            "macro_f1": 0.7798777335074526,
+            "weighted_f1": 0.9141035121796456
+        },
+        "Electronics": {
+            "records": 7500,
+            "accuracy": 0.9149333333333334,
+            "macro_f1": 0.7707881748357478,
+            "weighted_f1": 0.9166906806696432
+        },
+        "Home_Kitchen": {
+            "records": 7500,
+            "accuracy": 0.9148,
+            "macro_f1": 0.775323918897465,
+            "weighted_f1": 0.9165660572701619
+        }
+    }
+}

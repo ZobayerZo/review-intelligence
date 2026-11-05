@@ -271,8 +271,8 @@ def extract_aspects(
     # vocabulary/contextual rules over generic NLP discovery.
     candidates.sort(
         key=lambda item: (
-            -(item["end"] - item["start"]),
             not item["known_aspect"],
+            -(item["end"] - item["start"]),
             item["start"]
         )
     )
