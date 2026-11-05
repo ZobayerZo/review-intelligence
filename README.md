@@ -82,7 +82,7 @@ The raw dataset is not included in this repository because of its size. Users sh
 
 The project follows a modular structure that separates data processing, model development, aspect analysis, and dashboard implementation.
 
-```text
+
 review-intelligence/
 │
 ├── data/
@@ -120,7 +120,7 @@ review-intelligence/
 ├── requirements.txt
 ├── README.md
 └── .gitignore
-```
+
 
 *Note: The structure above highlights the main project components. Some directories contain additional intermediate files and artifacts.*
 
@@ -298,7 +298,7 @@ Allows users to enter review text and obtain sentiment and aspect-level predicti
 ### 1. Clone the Repository
 
 ```bash
-git clone <YOUR_GITHUB_REPOSITORY_URL>
+git clone https://github.com/zobayerzo/review-intelligence
 cd review-intelligence
 ```
 
@@ -394,6 +394,9 @@ Beyond predicting whether a review is positive or negative, the platform aims to
 
 ---
 
+Demo Link: https://review-intelligence-zobazo2.streamlit.app/
+
+
 ## Author
 
 **Md. Zobayer**
@@ -401,4 +404,3 @@ Beyond predicting whether a review is positive or negative, the platform aims to
 Computer Science and Engineering Graduate  
 Interests: Data Science, Machine Learning, Natural Language Processing, and Business Analytics.
 
-[GitHub](<YOUR_GITHUB_PROFILE_URL>) · [LinkedIn](<YOUR_LINKEDIN_PROFILE_URL>)
